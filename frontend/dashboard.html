@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel - 66 Vizite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .dashboard-layout {
+      display: flex;
+      gap: 32px;
+      width: 100%;
+      margin: 40px 0;
+      padding: 0 24px 0 0;
+      align-items: flex-start;
+    }
+    .dashboard-sidebar {
+      width: 280px;
+      background: var(--card);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 24px;
+      position: sticky;
+      top: 100px;
+    }
+    .sidebar-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar-menu button {
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+    }
+    .sidebar-menu button.active,
+    .sidebar-menu button:hover {
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--primary);
+    }
+    .dashboard-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .dashboard-section {
+      display: none;
+    }
+    .dashboard-section.active {
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .dashboard-layout {
+        flex-direction: column;
+      }
+      .dashboard-sidebar {
+        width: 100%;
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <a href="index.html" class="logo">🚗 66 Vizite</a>
+    <nav>
+      <a href="dashboard.html">Panel</a>
+    </nav>
+    <div class="actions">
+      <span id="userInfo" style="margin-right: 12px; color: var(--text);"></span>
+      <button class="btn btn-outline" id="logoutBtn">Çıkış Yap</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="dashboard-layout">
+      <aside class="dashboard-sidebar">
+        <h3 style="margin-bottom: 16px;">Menü</h3>
+        <div class="sidebar-menu">
+          <button class="active" data-section="profile">Profil & Üyelik Bilgileri</button>
+          <button data-section="vehicles">QR Vizite Bilgileri</button>
+          <button data-section="qr-create">QR Vizite Oluşturma</button>
+          <button data-section="packages">Paket Satın Al</button>
+          <button data-section="qr-purchased">Oluşturulan QR Vizite Kartları</button>
+          <button data-section="qr-all">Tüm QR Vizit Kartları</button>
+        </div>
+      </aside>
+      <div class="dashboard-content">
+        <section class="dashboard-section active" id="section-profile">
+          <div class="section" style="padding: 0; text-align: center;">
+            <h2>Profil & Üyelik Bilgileri</h2>
+            <p class="subtitle">Kullanıcı ve üyelik bilgilerinizi görüntüleyin</p>
+            <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto 24px auto; text-align: left;">
+              <div>
+                <p style="color: var(--muted); font-size: 14px; margin-bottom: 6px;">Ad Soyad</p>
+                <p style="font-size: 18px; font-weight: 600;" id="profileName">-</p>
+              </div>
+              <div>
+                <p style="color: var(--muted); font-size: 14px; margin-bottom: 6px;">E-posta</p>
+                <p style="font-size: 18px; font-weight: 600;" id="profileEmail">-</p>
+              </div>
+              <div>
+                <p style="color: var(--muted); font-size: 14px; margin-bottom: 6px;">Üyelik Tipi</p>
+                <p style="font-size: 18px; font-weight: 600;" id="profilePlan">-</p>
+              </div>
+            </div>
+            <h3 style="margin-bottom: 16px;">Araç Bilgileri</h3>
+            <div class="cards" id="profileVehicleList" style="max-width: 800px; margin: 0 auto;"></div>
+          </div>
+        </section>
+
+        <section class="dashboard-section" id="section-vehicles">
+          <div class="section" style="padding: 0;">
+            <h2>QR Vizite Bilgileri</h2>
+            <p class="subtitle">Araçlarınızı ekleyin ve QR bilgilerinizi görüntüleyin</p>
+            <div class="cards">
+              <div class="card">
+                <h3>Araç Ekle</h3>
+                <form id="vehicleForm">
+                  <label>
+                    Plaka
+                    <input type="text" name="plateNumber" placeholder="34 ABC 123" required>
+                  </label>
+                  <label>
+                    Marka/Model
+                    <input type="text" name="brandModel" placeholder="Örn. Toyota Corolla">
+                  </label>
+                  <label>
+                    Renk
+                    <input type="text" name="color" placeholder="Örn. Beyaz">
+                  </label>
+                  <label>
+                    İsim Soyisim (Vizitede Görünecek)
+                    <input type="text" name="ownerName" placeholder="Ad Soyad">
+                  </label>
+                  <label>
+                    Telefon Numarası (+90 ile başlayan)
+                    <input type="tel" name="contactPhone" placeholder="+90 xxx xxx xx xx">
+                  </label>
+                  <button type="submit" class="btn btn-primary btn-full">Araç Ekle</button>
+                </form>
+              </div>
+            </div>
+            <h3 style="margin-top: 24px; margin-bottom: 16px;">Kayıtlı Araçlarınız</h3>
+            <div class="cards" id="vehicleList"></div>
+          </div>
+        </section>
+
+        <section class="dashboard-section" id="section-qr-create">
+          <div class="section" style="padding: 0;">
+            <h2>QR Vizite Oluşturma</h2>
+            <p class="subtitle">Araçlarınız için QR vizite kartı oluşturun</p>
+            <div class="cards">
+              <div class="card">
+                <h3>QR Vizit Kartı Oluştur</h3>
+                <p style="margin-bottom: 16px;">Arabalarınıza QR vizit kartı oluşturabilirsiniz.</p>
+                <form id="qrForm">
+                  <label>
+                    Araç Seçin
+                    <select name="vehicleId" id="vehicleSelect" required>
+                      <option value="">Araç seçiniz</option>
+                    </select>
+                  </label>
+                  <label>
+                    Aranabilir Numara (+90 ile başlayan)
+                    <input type="tel" name="callNumber" placeholder="+90 xxx xxx xx xx" required>
+                  </label>
+                  <label>
+                    Otomatik Mesaj İçeriği
+                    <textarea name="autoMessage" placeholder="Örn. Merhaba, aracınız hatalı park nedeniyle yolumu kapatmış durumda. Lütfen aracınızı hareket ettirir misiniz?" rows="4" style="width:100%; padding:12px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(15,23,42,0.6); color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; resize:vertical; min-height:90px;">Merhaba, aracınız hatalı park veya engelleme nedeniyle bir sorun oluştu. Lütfen aracınızı hareket ettirir misiniz. Teşekkürler.</textarea>
+                  </label>
+                  <button type="submit" class="btn btn-primary btn-full">QR Vizit Kartı Oluştur</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-section" id="section-packages">
+          <div class="section" style="padding: 0;">
+            <h2>Paket Satın Al</h2>
+            <p class="subtitle">QR vizite oluşturmak için paket satın alın</p>
+            <div class="cards">
+              <div class="card">
+                <h3>QR Vizite Paketi</h3>
+                <p class="price">₺299 <span>/paket</span></p>
+                <ul class="features">
+                  <li>✓ QR Vizite Oluşturma Hakkı</li>
+                  <li>✓ Sınırsız Kullanım</li>
+                  <li>✓ Öncelikli Destek</li>
+                </ul>
+                <button id="buyQrBtn" class="btn btn-primary btn-full">Paket Satın Al</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-section" id="section-qr-purchased">
+          <div class="section" style="padding: 0;">
+            <h2>Oluşturulan QR Vizite Kartları</h2>
+            <p class="subtitle">Satın aldığınız QR vizit kartları burada gösterilir</p>
+            <div class="cards" id="purchasedQrList"></div>
+          </div>
+        </section>
+
+        <section class="dashboard-section" id="section-qr-all">
+          <div class="section" style="padding: 0;">
+            <h2>Tüm QR Vizit Kartları</h2>
+            <p class="subtitle">Tüm QR vizit kartlarınız</p>
+            <div class="cards" id="qrList"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <p class="logo">🚗 66 Vizite</p>
+        <p>QR kod ile araç ve eşyalarınıza güvenli iletişim köprüsü.</p>
+      </div>
+    </div>
+    <p class="copyright">© 2026 66 Vizite. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

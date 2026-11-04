@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Paneli - 66 Vizite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a href="index.html" class="logo">🚗 66 Vizite</a>
+    <nav>
+      <a href="admin.html">Admin Paneli</a>
+    </nav>
+    <div class="actions">
+      <span id="adminInfo" style="margin-right: 12px; color: var(--text);"></span>
+      <button class="btn btn-outline" id="logoutBtn">Çıkış Yap</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div style="max-width: 1100px; margin: 0 auto;">
+        <h2>Admin Paneli</h2>
+        <p class="subtitle">Tüm kullanıcıları ve sistem yönetimini görüntüleyin</p>
+        <div class="card" style="overflow-x: auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+            <h3 style="margin:0;">Kullanıcı Listesi</h3>
+            <span style="color: var(--muted); font-size: 14px;">Toplam kullanıcılar</span>
+          </div>
+          <div id="usersList">Yükleniyor...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <p class="logo">🚗 66 Vizite</p>
+      </div>
+    </div>
+    <p class="copyright">© 2026 66 Vizite. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script src="admin.js"></script>
+</body>
+</html>

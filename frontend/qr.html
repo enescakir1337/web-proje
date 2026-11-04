@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>66 Vizite - QR Görüntüleme</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a href="index.html" class="logo">🚗 66 Vizite</a>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="card" style="max-width: 420px; margin: 40px auto; text-align: center; border-radius: 18px;">
+        <h2 style="margin-bottom: 8px;">66 Vizite</h2>
+        <p style="color: var(--muted); margin-bottom: 24px;">Araç Sahibi ile İletişim</p>
+        <div id="qrInfo" style="text-align: left; display: flex; flex-direction: column; gap: 10px;">
+          <p>Yükleniyor...</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:28px;">
+          <a id="callBtn" class="btn btn-primary btn-full" href="#">Ara</a>
+          <a id="whatsappBtn" class="btn btn-outline btn-full" href="#">WhatsApp'tan Mesaj Gönder</a>
+          <a id="smsBtn" class="btn btn-outline btn-full" href="#">SMS ile Mesaj Gönder</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <p class="logo">🚗 66 Vizite</p>
+      </div>
+    </div>
+    <p class="copyright">© 2026 66 Vizite. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script src="qr.js"></script>
+</body>
+</html>

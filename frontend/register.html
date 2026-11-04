@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kayıt Ol - 66 Vizite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="form-page">
+    <div class="form-box">
+      <a href="index.html" class="logo">🚗 66 Vizite</a>
+
+      <h1>Hesap Oluştur</h1>
+      <p class="subtitle">Pro pakete başlamak ve aracınızı eklemek için kaydolun.</p>
+
+      <form id="pageRegisterForm" action="/api/auth/register" method="POST">
+        <label>
+          Ad Soyad
+          <input type="text" name="fullName" placeholder="Adınız Soyadınız" required>
+        </label>
+
+        <label>
+          E-posta
+          <input type="email" name="email" placeholder="ornek@email.com" required>
+        </label>
+
+        <label>
+          Şifre
+          <input type="password" name="password" placeholder="En az 6 karakter" minlength="6" required>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-full">Kayıt Ol</button>
+      </form>
+
+      <a href="index.html" class="back">← Ana Sayfaya Dön</a>
+    </div>
+  </main>
+
+  <script src="register.js"></script>
+</body>
+</html>
