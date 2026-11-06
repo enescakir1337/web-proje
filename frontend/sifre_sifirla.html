@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Şifre Sıfırla - 66 Vizite</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a href="index.html" class="logo">🚗 66 Vizite</a>
+  </header>
+
+  <main>
+    <section class="section" style="max-width: 480px; margin: 0 auto;">
+      <h2>Yeni Şifre Belirle</h2>
+      <p class="subtitle">Şifre sıfırlama bağlantınızı kullanarak yeni şifrenizi belirleyin</p>
+      <div class="card" style="text-align: left;">
+        <form id="resetPasswordForm">
+          <label>
+            Yeni Şifre
+            <input type="password" name="newPassword" minlength="6" maxlength="72" placeholder="En az 6 karakter" required>
+          </label>
+          <label>
+            Yeni Şifre (Tekrar)
+            <input type="password" name="newPasswordConfirm" minlength="6" maxlength="72" placeholder="Şifrenizi tekrar girin" required>
+          </label>
+          <button type="submit" class="btn btn-primary btn-full">Şifremi Güncelle</button>
+          <p style="text-align:center; margin-top:16px;">
+            <a href="index.html" style="color: var(--muted); font-size: 14px; text-decoration: none;">Ana sayfaya dön</a>
+          </p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <p class="logo">🚗 66 Vizite</p>
+      </div>
+    </div>
+    <p class="copyright">© 2026 66 Vizite. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var token = params.get('token');
+      var form = document.getElementById('resetPasswordForm');
+
+      if (!token) {
+        form.innerHTML = '<p style="color:var(--danger, #ef4444);">Şifre sıfırlama bağlantısı geçersiz. Lütfen <a href="index.html">yeni bir bağlantı</a> isteyin.</p>';
+        return;
+      }
+
+      form.onsubmit = async function (event) {
+        event.preventDefault();
+        var password = form.newPassword.value;
+        var confirm = form.newPasswordConfirm.value;
+
+        if (password !== confirm) {
+          alert('Girdiğiniz şifreler birbiriyle uyuşmuyor.');
+          return;
+        }
+
+        try {
+          var response = await fetch('/api/auth/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token, new_password: password })
+          });
+          var result = await response.json();
+          if (result.success) {
+            alert(result.message);
+            window.location.href = 'index.html';
+          } else {
+            alert('Hata: ' + result.message);
+          }
+        } catch (e) {
+          alert('Sunucuya ulaşılamadı. Lütfen daha sonra tekrar deneyin.');
+        }
+      };
+    })();
+  </script>
+</body>
+</html>

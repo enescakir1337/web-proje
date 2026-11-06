@@ -49,7 +49,23 @@ CREATE TABLE IF NOT EXISTS qr_codes (
     FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_key VARCHAR(128) NOT NULL,
+    attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_vehicles_user ON vehicles(user_id);
 CREATE INDEX IF NOT EXISTS idx_qr_token ON qr_codes(qr_token);
 CREATE INDEX IF NOT EXISTS idx_purchases_user ON purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(attempt_key, attempted_at);

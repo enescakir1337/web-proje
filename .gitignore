@@ -15,3 +15,6 @@ $RECYCLE.BIN/
 
 # Logs
 *.log
+
+# Agent/arac ciktilari
+.playwright-mcp/

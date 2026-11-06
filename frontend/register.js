@@ -4,7 +4,6 @@ form.onsubmit = async (event) => {
   event.preventDefault();
 
   const data = Object.fromEntries(new FormData(form));
-  data.planTier = 'free';
 
   try {
     const response = await fetch('/api/auth/register', {

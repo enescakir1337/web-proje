@@ -1,61 +1,38 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
+require_once __DIR__ . '/../../auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Yalnızca POST istekleri kabul edilir.']);
-    exit;
-}
-
-require_once __DIR__ . '/../../database/db.php';
-
-$rawInput = file_get_contents('php://input');
-$data = json_decode($rawInput, true);
-
-if (!is_array($data)) {
-    $data = $_POST;
-}
-
-$email = trim((string)($data['email'] ?? ''));
-$password = (string)($data['password'] ?? '');
-
-if ($email === '' || $password === '') {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => 'E-posta ve Şifre alanları zorunludur.'
-    ]);
-    exit;
+    json_response(['success' => false, 'message' => 'Yalnızca POST istekleri kabul edilir.'], 405);
 }
 
 try {
+    $data = read_json_body();
+    $email = strtolower(trim((string)($data['email'] ?? '')));
+    $password = (string)($data['password'] ?? '');
+
+    if ($email === '' || $password === '') {
+        json_response(['success' => false, 'message' => 'E-posta ve Şifre alanları zorunludur.'], 400);
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        json_response(['success' => false, 'message' => 'Geçerli bir e-posta adresi giriniz.'], 400);
+    }
+
+    rate_limit('login', 10, 15);
+
     $user = authenticateUser($email, $password);
-    http_response_code(200);
-    echo json_encode([
+
+    login_session((int)$user['id']);
+
+    json_response([
         'success' => true,
         'message' => 'Giriş başarılı!',
         'user' => $user
     ]);
 } catch (InvalidArgumentException $e) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
-    ]);
+    json_response(['success' => false, 'message' => $e->getMessage()], 401);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Sunucu hatası: ' . $e->getMessage()
-    ]);
+    handle_api_error('login', $e);
 }

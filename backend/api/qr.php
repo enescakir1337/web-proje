@@ -1,48 +1,24 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-require_once __DIR__ . '/../database/db.php';
+require_once __DIR__ . '/../auth.php';
 
 try {
     $token = trim((string)($_GET['token'] ?? ''));
     if ($token === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'QR token gerekli.']);
-        exit;
+        json_response(['success' => false, 'message' => 'QR token gerekli.'], 400);
     }
-    
-    $db = getDbConnection();
-    $stmt = $db->prepare('
-        SELECT qc.*, v.plate_number, v.brand_model, v.color, v.owner_name, v.contact_phone as vehicle_contact
-        FROM qr_codes qc
-        LEFT JOIN vehicles v ON v.id = qc.vehicle_id
-        WHERE qc.qr_token = :token
-    ');
-    $stmt->execute([':token' => $token]);
-    $qr = $stmt->fetch();
-    
+
+    $qr = getActiveQrByToken($token);
+
     if (!$qr) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'QR vizite bilgisi bulunamadı.']);
-        exit;
+        json_response(['success' => false, 'message' => 'QR vizite bilgisi bulunamadı veya kart devre dışı.'], 404);
     }
-    
-    // Görüntülenme sayısını artır
-    $db->prepare('UPDATE qr_codes SET scan_count = scan_count + 1 WHERE qr_token = :token')->execute([':token' => $token]);
-    
-    http_response_code(200);
-    echo json_encode(['success' => true, 'qr' => $qr]);
+
+    incrementQrScanCount((int)$qr['id']);
+    $qr = getActiveQrByToken($token);
+
+    json_response(['success' => true, 'qr' => $qr]);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Hata: ' . $e->getMessage()]);
+    handle_api_error('qr-scan', $e);
 }

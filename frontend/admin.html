@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Paneli - 66 Vizite</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,19 +23,41 @@
   </header>
 
   <main>
-    <section class="section">
-      <div style="max-width: 1100px; margin: 0 auto;">
-        <h2>Admin Paneli</h2>
-        <p class="subtitle">Tüm kullanıcıları ve sistem yönetimini görüntüleyin</p>
-        <div class="card" style="overflow-x: auto;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-            <h3 style="margin:0;">Kullanıcı Listesi</h3>
-            <span style="color: var(--muted); font-size: 14px;">Toplam kullanıcılar</span>
+    <div class="panel-page panel-page--single">
+      <div class="panel-content">
+        <div class="panel-head">
+          <h2>Admin Paneli</h2>
+          <p class="subtitle">Sistem istatistiklerini görüntüleyin ve kullanıcı hesaplarını yönetin</p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-label">Kullanıcı</p>
+            <h3 id="statUsers">-</h3>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Araç</p>
+            <h3 id="statVehicles">-</h3>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Aktif QR Kart</p>
+            <h3 id="statActiveQr">-</h3>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Toplam Tarama</p>
+            <h3 id="statScans">-</h3>
+          </div>
+        </div>
+
+        <div class="data-card">
+          <div class="row-actions" style="justify-content: space-between; align-items: center; padding: 12px 10px 4px;">
+            <h3 style="margin: 0; font-size: 1.02rem;">Kullanıcı Listesi</h3>
+            <span style="color: var(--muted); font-size: 12.5px;"><span id="userCountLabel">-</span> kullanıcı</span>
           </div>
           <div id="usersList">Yükleniyor...</div>
         </div>
       </div>
-    </section>
+    </div>
   </main>
 
   <footer>

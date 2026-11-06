@@ -4,99 +4,136 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel - 66 Vizite</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
-    .dashboard-layout {
+    .panel-body {
+      padding: 0;
+      text-align: left;
+      border-bottom: none;
+    }
+    .panel-body h2 {
+      margin: 2px 0 4px;
+      font-size: 1.4rem;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      text-align: left;
+    }
+    .panel-body .subtitle {
+      margin-bottom: 20px;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    .panel-grid--qr {
+      grid-template-columns: repeat(auto-fill, minmax(300px, 380px));
+    }
+    .veh-card h4 {
+      margin: 2px 0 12px;
+      font-size: 1.05rem;
+      letter-spacing: 0.01em;
+    }
+    .veh-card p {
       display: flex;
-      gap: 32px;
-      width: 100%;
-      margin: 40px 0;
-      padding: 0 24px 0 0;
-      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      margin: 8px 0 0;
+      color: var(--text);
+      font-size: 0.87rem;
     }
-    .dashboard-sidebar {
-      width: 280px;
-      background: var(--card);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 24px;
-      position: sticky;
-      top: 100px;
+    .veh-card p strong {
+      color: var(--muted);
+      font-weight: 600;
+      flex: none;
     }
-    .sidebar-menu {
+    .qr-card-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-    }
-    .sidebar-menu button {
-      text-align: left;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      padding: 12px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 15px;
-      transition: all 0.2s;
-    }
-    .sidebar-menu button.active,
-    .sidebar-menu button:hover {
-      background: rgba(37, 99, 235, 0.15);
-      color: var(--primary);
-    }
-    .dashboard-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    .dashboard-section {
-      display: none;
-    }
-    .dashboard-section.active {
-      display: block;
-    }
-    .qr-card-item {
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
       position: relative;
+    }
+    .qr-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
     }
     .qr-badge {
       display: inline-block;
       padding: 4px 10px;
-      border-radius: 20px;
+      border-radius: 999px;
       font-size: 12px;
       font-weight: 600;
       width: fit-content;
     }
     .qr-badge-active {
-      background: rgba(16, 185, 129, 0.2);
-      color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
       border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .qr-badge-inactive {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .qr-meta {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .qr-visual {
+      text-align: center;
+      margin: 4px 0 2px;
+    }
+    .qr-visual img {
+      width: 168px;
+      height: 168px;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .qr-visual p {
+      margin: 8px 0 0;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .qr-plate {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .qr-brand {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .qr-line {
+      margin: 0;
+      font-size: 0.87rem;
+    }
+    .qr-token {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
     }
     .qr-actions-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 12px;
+      margin-top: auto;
     }
-    @media (max-width: 900px) {
-      .dashboard-layout {
-        flex-direction: column;
-      }
-      .dashboard-sidebar {
-        width: 100%;
-        position: static;
-      }
+    .qr-actions-grid .btn {
+      padding: 8px 10px;
+      font-size: 12.5px;
     }
     @media print {
       body * {
@@ -137,24 +174,23 @@
   </header>
 
   <main>
-    <div class="dashboard-layout">
-      <aside class="dashboard-sidebar">
+    <div class="panel-page">
+      <aside class="panel-sidebar">
         <h3 style="margin-bottom: 16px;">Menü</h3>
-        <div class="sidebar-menu">
+        <div class="panel-menu">
           <button class="active" data-section="profile">Profil & Üyelik Bilgileri</button>
           <button data-section="vehicles">QR Vizite Bilgileri</button>
           <button data-section="qr-create">QR Vizite Oluşturma</button>
           <button data-section="packages">Paket Satın Al</button>
-          <button data-section="qr-purchased">Oluşturulan QR Vizite Kartları</button>
-          <button data-section="qr-all">Tüm QR Vizit Kartları</button>
+          <button data-section="qr-all">QR Kartlarım</button>
         </div>
       </aside>
-      <div class="dashboard-content">
-        <section class="dashboard-section active" id="section-profile">
+      <div class="panel-content">
+        <section class="panel-section active" id="section-profile">
           <div class="section" style="padding: 0; text-align: center;">
             <h2>Profil & Üyelik Bilgileri</h2>
             <p class="subtitle">Kullanıcı ve üyelik bilgilerinizi görüntüleyin</p>
-            <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto 24px auto; text-align: left;">
+            <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 0;">
               <div>
                 <p style="color: var(--muted); font-size: 14px; margin-bottom: 6px;">Ad Soyad</p>
                 <p style="font-size: 18px; font-weight: 600;" id="profileName">-</p>
@@ -168,16 +204,50 @@
                 <p style="font-size: 18px; font-weight: 600; text-transform:uppercase;" id="profilePlan">-</p>
               </div>
             </div>
+            <div class="panel-grid panel-grid--narrow" style="margin-top: 16px;">
+              <div class="card">
+                <h3>Profil Bilgilerini Düzenle</h3>
+                <form id="profileForm">
+                  <label>
+                    Ad Soyad
+                    <input type="text" name="fullName" id="profileFullNameInput" maxlength="100" required>
+                  </label>
+                  <label>
+                    Telefon Numarası
+                    <input type="tel" name="phoneNumber" id="profilePhoneInput" placeholder="+90 xxx xxx xx xx">
+                  </label>
+                  <label>
+                    Meslek
+                    <input type="text" name="occupation" id="profileOccupationInput" maxlength="100">
+                  </label>
+                  <button type="submit" class="btn btn-primary btn-full">Bilgilerimi Kaydet</button>
+                </form>
+              </div>
+              <div class="card">
+                <h3>Şifre Değiştir</h3>
+                <form id="passwordForm">
+                  <label>
+                    Mevcut Şifre
+                    <input type="password" name="currentPassword" required>
+                  </label>
+                  <label>
+                    Yeni Şifre
+                    <input type="password" name="newPassword" minlength="6" maxlength="72" required>
+                  </label>
+                  <button type="submit" class="btn btn-outline btn-full">Şifremi Güncelle</button>
+                </form>
+              </div>
+            </div>
             <h3 style="margin-bottom: 16px;">Araç Bilgileri</h3>
-            <div class="cards" id="profileVehicleList" style="max-width: 800px; margin: 0 auto;"></div>
+            <div class="panel-grid" id="profileVehicleList"></div>
           </div>
         </section>
 
-        <section class="dashboard-section" id="section-vehicles">
-          <div class="section" style="padding: 0;">
+        <section class="panel-section" id="section-vehicles">
+          <div class="panel-body">
             <h2>QR Vizite Bilgileri</h2>
             <p class="subtitle">Araçlarınızı ekleyin ve QR bilgilerinizi görüntüleyin</p>
-            <div class="cards">
+            <div class="panel-grid panel-grid--form" style="margin-bottom: 0;">
               <div class="card">
                 <h3>Araç Ekle</h3>
                 <form id="vehicleForm">
@@ -191,7 +261,7 @@
                   </label>
                   <label>
                     Renk
-                    <input type="text" name="color" placeholder="Örn. Beyaz">
+                    <select name="color" id="vehicleColorSelect"></select>
                   </label>
                   <label>
                     İsim Soyisim (Vizitede Görünecek)
@@ -206,15 +276,15 @@
               </div>
             </div>
             <h3 style="margin-top: 24px; margin-bottom: 16px;">Kayıtlı Araçlarınız</h3>
-            <div class="cards" id="vehicleList"></div>
+            <div class="panel-grid" id="vehicleList" style="margin-top: 20px;"></div>
           </div>
         </section>
 
-        <section class="dashboard-section" id="section-qr-create">
-          <div class="section" style="padding: 0;">
+        <section class="panel-section" id="section-qr-create">
+          <div class="panel-body">
             <h2>QR Vizite Oluşturma</h2>
             <p class="subtitle">Araçlarınız için QR vizite kartı oluşturun</p>
-            <div class="cards">
+            <div class="panel-grid panel-grid--form" style="margin-bottom: 0;">
               <div class="card">
                 <h3>QR Vizit Kartı Oluştur</h3>
                 <p style="margin-bottom: 16px; color:var(--muted);">Aracınızı seçin ve vizite kartınızı saniyeler içinde oluşturun.</p>
@@ -243,11 +313,11 @@
           </div>
         </section>
 
-        <section class="dashboard-section" id="section-packages">
-          <div class="section" style="padding: 0;">
+        <section class="panel-section" id="section-packages">
+          <div class="panel-body">
             <h2>Paket Satın Al</h2>
             <p class="subtitle">QR vizite oluşturmak için Pro paketinizi aktifleştirin</p>
-            <div class="cards">
+            <div class="panel-grid panel-grid--form" style="margin-bottom: 0;">
               <div class="card">
                 <h3>QR Vizite Paketi (Pro)</h3>
                 <p class="price">₺299 <span>/paket</span></p>
@@ -263,19 +333,11 @@
           </div>
         </section>
 
-        <section class="dashboard-section" id="section-qr-purchased">
-          <div class="section" style="padding: 0;">
-            <h2>Oluşturulan QR Vizite Kartları</h2>
-            <p class="subtitle">Oluşturduğunuz ve kullanıma hazır tüm QR vizit kartlarınız</p>
-            <div class="cards" id="purchasedQrList"></div>
-          </div>
-        </section>
-
-        <section class="dashboard-section" id="section-qr-all">
-          <div class="section" style="padding: 0;">
+        <section class="panel-section" id="section-qr-all">
+          <div class="panel-body">
             <h2>Tüm QR Vizit Kartları</h2>
-            <p class="subtitle">Sisteminizde kayıtlı tüm QR vizit kartlarınız</p>
-            <div class="cards" id="qrList"></div>
+            <p class="subtitle">Oluşturduğunuz tüm QR vizit kartlarınızı indirin, yazdırın ve yönetin</p>
+            <div class="panel-grid panel-grid--qr" id="qrList"></div>
           </div>
         </section>
       </div>
@@ -292,6 +354,8 @@
     <p class="copyright">© 2026 66 Vizite. Tüm hakları saklıdır.</p>
   </footer>
 
+  <script src="vendor/qrcode.min.js"></script>
+  <script src="renkler.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

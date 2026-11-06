@@ -31,6 +31,28 @@ modal.onclick = (event) => {
 loginTab.onclick = () => showTab(true);
 registerTab.onclick = () => showTab(false);
 
+const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+if (forgotPasswordLink) {
+  forgotPasswordLink.onclick = async (event) => {
+    event.preventDefault();
+    const email = prompt('Şifre sıfırlama bağlantısı gönderilecek e-posta adresinizi girin:');
+    if (!email) {
+      return;
+    }
+    try {
+      const response = await fetch('/api/auth/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const result = await response.json();
+      alert(result.message || 'İstek alındı.');
+    } catch {
+      alert('Sunucuya ulaşılamadı. Lütfen daha sonra tekrar deneyin.');
+    }
+  };
+}
+
 async function sendRequest(url, data) {
   try {
     const response = await fetch(url, {

@@ -1,0 +1,31 @@
+# 66 Vizite - Apache (shared hosting) yapilandirmasi
+# Tum proje kokune kopyalanir; PHP ve mod_rewrite etkin olmalidir (Apache 2.4+).
+
+DirectoryIndex frontend/index.html index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # backend/ ve database/ icine dogrudan erisim engellenir
+  # (API yalnizca /api/... uzerinden calisir)
+  RewriteRule ^backend(/|$) - [F]
+
+  # /api/* istekleri tek front controller'a gider
+  RewriteRule ^api(/.*)?$ backend/api/index.php [END,QSA]
+
+  # Kok dizinde bulunmayan dosyalar frontend/ altindan servis edilir
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ frontend/$1 [END]
+</IfModule>
+
+# Veritabani ve hassas dosyalara web uzerinden erisim engellenir
+<FilesMatch "\.(db|sqlite|sqlite3|sql|log|md|lock|qa)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

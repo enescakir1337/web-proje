@@ -1,67 +1,95 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../auth.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-require_once __DIR__ . '/../database/db.php';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 try {
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
-        if ($userId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Kullanıcı bilgisi gerekli.']);
-            exit;
-        }
+    $user = require_user();
+    $userId = (int)$user['id'];
+
+    if ($method === 'GET') {
         $qrCodes = getQrCodesByUserId($userId);
-        $purchasedQrCodes = getPurchasedQrCodesByUserId($userId);
-        http_response_code(200);
-        echo json_encode(['success' => true, 'qrCodes' => $qrCodes, 'purchasedQrCodes' => $purchasedQrCodes]);
-        exit;
+        json_response(['success' => true, 'qrCodes' => $qrCodes]);
     }
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        if (!is_array($data)) {
-            $data = $_POST;
-        }
-        
-        $vehicleId = isset($data['vehicle_id']) ? (int)$data['vehicle_id'] : (isset($data['vehicleId']) ? (int)$data['vehicleId'] : 0);
-        $purchaseId = isset($data['purchase_id']) ? (int)$data['purchase_id'] : (isset($data['purchaseId']) ? (int)$data['purchaseId'] : null);
-        if ($purchaseId === 0) {
-            $purchaseId = null;
-        }
+
+    if ($method === 'POST') {
+        $data = read_json_body();
+
+        $vehicleId = (int)($data['vehicle_id'] ?? $data['vehicleId'] ?? 0);
+        $purchaseId = $data['purchase_id'] ?? $data['purchaseId'] ?? null;
+        $purchaseId = ($purchaseId === null || (int)$purchaseId === 0) ? null : (int)$purchaseId;
         $callNumber = trim((string)($data['callNumber'] ?? $data['call_number'] ?? $data['phone'] ?? $data['telefon'] ?? ''));
         $autoMessage = trim((string)($data['autoMessage'] ?? $data['auto_message'] ?? $data['mesaj'] ?? ''));
-        
+
         if ($vehicleId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Lütfen geçerli bir araç seçin.']);
-            exit;
+            json_response(['success' => false, 'message' => 'Lütfen geçerli bir araç seçin.'], 400);
         }
-        
+
+        $vehicle = getVehicleForOwner($vehicleId, $userId);
+        if ($vehicle === null) {
+            json_response(['success' => false, 'message' => 'Seçilen araç bulunamadı.'], 404);
+        }
+
         $qrCode = createQrCode($vehicleId, $purchaseId, $callNumber, $autoMessage);
-        http_response_code(201);
-        echo json_encode([
-            'success' => true, 
-            'message' => 'QR vizit kartı başarıyla oluşturuldu.', 
+        json_response([
+            'success' => true,
+            'message' => 'QR vizit kartı başarıyla oluşturuldu.',
             'qrCode' => $qrCode
-        ]);
-        exit;
+        ], 201);
     }
-    
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Desteklenmeyen istek metodu.']);
+
+    if ($method === 'PATCH' || $method === 'PUT') {
+        $data = read_json_body();
+        $qrId = (int)($data['id'] ?? $data['qr_id'] ?? $data['qrId'] ?? 0);
+        $action = trim((string)($data['action'] ?? ''));
+
+        if ($qrId <= 0) {
+            json_response(['success' => false, 'message' => 'Geçersiz istek.'], 400);
+        }
+
+        if ($action === 'toggle') {
+            $active = (int)($data['is_active'] ?? $data['isActive'] ?? 0) === 1;
+            if (!setQrActive($qrId, $userId, $active)) {
+                json_response(['success' => false, 'message' => 'QR kartı bulunamadı.'], 404);
+            }
+            json_response([
+                'success' => true,
+                'message' => $active ? 'QR kartı etkinleştirildi.' : 'QR kartı devre dışı bırakıldı.',
+                'qrCode' => ['id' => $qrId, 'is_active' => $active ? 1 : 0]
+            ]);
+        }
+
+        if ($action === 'rotate') {
+            $updated = rotateQrToken($qrId, $userId);
+            if ($updated === null) {
+                json_response(['success' => false, 'message' => 'QR kartı bulunamadı.'], 404);
+            }
+            json_response(['success' => true, 'message' => 'QR kartı bağlantısı yenilendi. Eski basılı kartlar geçersizdir.', 'qrCode' => $updated]);
+        }
+
+        json_response(['success' => false, 'message' => 'Geçersiz işlem.'], 400);
+    }
+
+    if ($method === 'DELETE') {
+        $data = read_json_body();
+        $qrId = (int)($data['id'] ?? $data['qr_id'] ?? $data['qrId'] ?? $_GET['id'] ?? 0);
+
+        if ($qrId <= 0) {
+            json_response(['success' => false, 'message' => 'Geçersiz istek.'], 400);
+        }
+
+        if (!deleteQrCodeByOwner($qrId, $userId)) {
+            json_response(['success' => false, 'message' => 'QR kartı bulunamadı.'], 404);
+        }
+
+        json_response(['success' => true, 'message' => 'QR kartı silindi.']);
+    }
+
+    json_response(['success' => false, 'message' => 'Desteklenmeyen istek metodu.'], 405);
+} catch (InvalidArgumentException $e) {
+    json_response(['success' => false, 'message' => $e->getMessage()], 400);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'QR kod işlemi sırasında hata oluştu: ' . $e->getMessage()]);
+    handle_api_error('qr-codes', $e);
 }

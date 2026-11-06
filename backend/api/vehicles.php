@@ -1,111 +1,118 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../auth.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-require_once __DIR__ . '/../database/db.php';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 try {
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
-        if ($userId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Kullanıcı bilgisi gerekli.']);
-            exit;
-        }
+    $user = require_user();
+    $userId = (int)$user['id'];
+
+    if ($method === 'GET') {
         $vehicles = getVehiclesByUserId($userId);
-        http_response_code(200);
-        echo json_encode(['success' => true, 'vehicles' => $vehicles]);
-        exit;
+        json_response(['success' => true, 'vehicles' => $vehicles]);
     }
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        if (!is_array($data)) {
-            $data = $_POST;
-        }
-        
-        $userId = isset($data['user_id']) ? (int)$data['user_id'] : (isset($data['userId']) ? (int)$data['userId'] : 0);
+
+    if ($method === 'POST') {
+        $data = read_json_body();
+
         $plateNumber = trim((string)($data['plateNumber'] ?? $data['plate_number'] ?? ''));
         $brandModel = trim((string)($data['brandModel'] ?? $data['brand_model'] ?? ''));
         $color = trim((string)($data['color'] ?? ''));
         $ownerName = trim((string)($data['ownerName'] ?? $data['owner_name'] ?? $data['isimSoyisim'] ?? $data['adSoyad'] ?? ''));
         $contactPhone = trim((string)($data['contactPhone'] ?? $data['contact_phone'] ?? $data['phone'] ?? $data['telefon'] ?? $data['telefonNumarasi'] ?? ''));
-        
-        if ($userId <= 0 || $plateNumber === '') {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Kullanıcı ve plaka bilgileri zorunludur.']);
-            exit;
+
+        if ($plateNumber === '') {
+            json_response(['success' => false, 'message' => 'Plaka bilgisi zorunludur.'], 400);
         }
-        
+
+        if (mb_strlen($plateNumber) > 20) {
+            json_response(['success' => false, 'message' => 'Plaka en fazla 20 karakter olabilir.'], 400);
+        }
+
+        if (findVehicleByPlate($userId, $plateNumber) !== null) {
+            json_response(['success' => false, 'message' => 'Bu plaka zaten kayıtlarınızda bulunuyor.'], 400);
+        }
+
+        if ($color !== '' && !in_array($color, gecerliAracRenkleri(), true)) {
+            json_response(['success' => false, 'message' => 'Geçersiz renk seçimi. Lütfen listeden bir renk seçin.'], 400);
+        }
+
         $vehicle = createVehicle($userId, $plateNumber, $brandModel, $color, $ownerName, $contactPhone);
-        http_response_code(201);
-        echo json_encode(['success' => true, 'message' => 'Araç başarıyla eklendi.', 'vehicle' => $vehicle]);
-        exit;
+        json_response(['success' => true, 'message' => 'Araç başarıyla eklendi.', 'vehicle' => $vehicle], 201);
     }
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'PUT' || $_SERVER['REQUEST_METHOD'] === 'PATCH') {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        if (!is_array($data)) {
-            $data = $_POST;
+
+    if ($method === 'PUT' || $method === 'PATCH') {
+        $data = read_json_body();
+        $vehicleId = (int)($data['vehicle_id'] ?? $data['vehicleId'] ?? $data['id'] ?? 0);
+
+        if ($vehicleId <= 0) {
+            json_response(['success' => false, 'message' => 'Geçersiz istek.'], 400);
         }
-        $vehicleId = isset($data['id']) ? (int)$data['id'] : (isset($data['vehicle_id']) ? (int)$data['vehicle_id'] : 0);
-        $userId = isset($data['user_id']) ? (int)$data['user_id'] : 0;
-        if ($vehicleId <= 0 || $userId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Geçersiz istek.']);
-            exit;
+
+        $existing = getVehicleForOwner($vehicleId, $userId);
+        if ($existing === null) {
+            json_response(['success' => false, 'message' => 'Araç bulunamadı.'], 404);
         }
+
+        $plateNumber = trim((string)($data['plateNumber'] ?? $data['plate_number'] ?? $existing['plate_number']));
+        $brandModel = trim((string)($data['brandModel'] ?? $data['brand_model'] ?? $existing['brand_model'] ?? ''));
+        $color = trim((string)($data['color'] ?? $existing['color'] ?? ''));
+        $ownerName = trim((string)($data['ownerName'] ?? $data['owner_name'] ?? $existing['owner_name'] ?? ''));
+        $contactPhone = trim((string)($data['contactPhone'] ?? $data['contact_phone'] ?? $existing['contact_phone'] ?? ''));
+
+        if ($plateNumber === '') {
+            json_response(['success' => false, 'message' => 'Plaka bilgisi zorunludur.'], 400);
+        }
+
+        $duplicate = findVehicleByPlate($userId, $plateNumber, $vehicleId);
+        if ($duplicate !== null) {
+            json_response(['success' => false, 'message' => 'Bu plaka zaten kayıtlarınızda bulunuyor.'], 400);
+        }
+
+        if ($color !== '' && !in_array($color, gecerliAracRenkleri(), true)) {
+            json_response(['success' => false, 'message' => 'Geçersiz renk seçimi. Lütfen listeden bir renk seçin.'], 400);
+        }
+
         $db = getDbConnection();
         $stmt = $db->prepare('UPDATE vehicles SET plate_number=:plate_number, brand_model=:brand_model, color=:color, owner_name=:owner_name, contact_phone=:contact_phone WHERE id=:id AND user_id=:user_id');
         $stmt->execute([
             ':id' => $vehicleId,
             ':user_id' => $userId,
-            ':plate_number' => trim((string)($data['plateNumber'] ?? $data['plate_number'] ?? '')),
-            ':brand_model' => trim((string)($data['brandModel'] ?? $data['brand_model'] ?? '')),
-            ':color' => trim((string)($data['color'] ?? '')),
-            ':owner_name' => trim((string)($data['ownerName'] ?? $data['owner_name'] ?? '')) === '' ? null : trim((string)($data['ownerName'] ?? $data['owner_name'] ?? '')),
-            ':contact_phone' => trim((string)($data['contactPhone'] ?? $data['contact_phone'] ?? '')) === '' ? null : trim((string)($data['contactPhone'] ?? $data['contact_phone'] ?? '')),
+            ':plate_number' => $plateNumber,
+            ':brand_model' => $brandModel === '' ? null : $brandModel,
+            ':color' => $color === '' ? null : $color,
+            ':owner_name' => $ownerName === '' ? null : $ownerName,
+            ':contact_phone' => $contactPhone === '' ? null : $contactPhone,
         ]);
-        http_response_code(200);
-        echo json_encode(['success' => true, 'message' => 'Araç bilgileri güncellendi.']);
-        exit;
+
+        json_response(['success' => true, 'message' => 'Araç bilgileri güncellendi.', 'vehicle' => getVehicleForOwner($vehicleId, $userId)]);
     }
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
-        if (!is_array($data)) {
-            $data = $_GET;
+
+    if ($method === 'DELETE') {
+        $data = read_json_body();
+        $vehicleId = (int)($data['vehicle_id'] ?? $data['vehicleId'] ?? $data['id'] ?? $_GET['id'] ?? 0);
+
+        if ($vehicleId <= 0) {
+            json_response(['success' => false, 'message' => 'Geçersiz istek.'], 400);
         }
-        $vehicleId = isset($data['id']) ? (int)$data['id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
-        $userId = isset($data['user_id']) ? (int)$data['user_id'] : (isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0);
-        if ($vehicleId <= 0 || $userId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Geçersiz istek.']);
-            exit;
+
+        $existing = getVehicleForOwner($vehicleId, $userId);
+        if ($existing === null) {
+            json_response(['success' => false, 'message' => 'Araç bulunamadı.'], 404);
         }
+
         $db = getDbConnection();
-        $stmt = $db->prepare('DELETE FROM vehicles WHERE id=:id AND user_id=:user_id');
+        $stmt = $db->prepare('DELETE FROM vehicles WHERE id = :id AND user_id = :user_id');
         $stmt->execute([':id' => $vehicleId, ':user_id' => $userId]);
-        http_response_code(200);
-        echo json_encode(['success' => true, 'message' => 'Araç silindi.']);
-        exit;
+
+        json_response(['success' => true, 'message' => 'Araç ve bağlı QR kodları silindi.']);
     }
-    
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Desteklenmeyen istek metodu.']);
+
+    json_response(['success' => false, 'message' => 'Desteklenmeyen istek metodu.'], 405);
+} catch (InvalidArgumentException $e) {
+    json_response(['success' => false, 'message' => $e->getMessage()], 400);
 } catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Araç işlemi sırasında hata oluştu: ' . $e->getMessage()]);
+    handle_api_error('vehicles', $e);
 }

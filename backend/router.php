@@ -2,24 +2,20 @@
 
 declare(strict_types=1);
 
+/*
+ * PHP built-in sunucu router (gelistirme / baslat.sh):
+ *   php -S 0.0.0.0:8000 -t frontend backend/router.php
+ *
+ * API istekleri tek route tablosu icin backend/api/index.php'ye devredilir.
+ * Shared hosting'te (Apache) bu dosya kullanilmaz; orada .htaccess gecerlidir.
+ */
+
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $frontendDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'frontend';
 
-$routes = [
-    '/api/auth/register' => __DIR__ . '/api/auth/register.php',
-    '/api/auth/login' => __DIR__ . '/api/auth/login.php',
-    '/api/users' => __DIR__ . '/api/users.php',
-    '/api/user/update-plan' => __DIR__ . '/api/user_update_plan.php',
-    '/api/dashboard' => __DIR__ . '/api/dashboard.php',
-    '/api/vehicles' => __DIR__ . '/api/vehicles.php',
-    '/api/qr-codes' => __DIR__ . '/api/qr_codes.php',
-    '/api/purchases' => __DIR__ . '/api/purchases.php',
-    '/api/qr' => __DIR__ . '/api/qr.php',
-];
-
-if (isset($routes[$uri])) {
-    require $routes[$uri];
-    exit;
+if ($uri === '/api' || str_starts_with($uri, '/api/')) {
+    require __DIR__ . '/api/index.php';
+    return true;
 }
 
 if ($uri === '/' || $uri === '') {

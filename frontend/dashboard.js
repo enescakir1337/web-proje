@@ -8,18 +8,31 @@ const submitQrBtn = document.getElementById('submitQrBtn');
 const newQrResult = document.getElementById('newQrResult');
 const vehicleList = document.getElementById('vehicleList');
 const qrList = document.getElementById('qrList');
-const purchasedQrList = document.getElementById('purchasedQrList');
 const profileName = document.getElementById('profileName');
 const profileEmail = document.getElementById('profileEmail');
 const profilePlan = document.getElementById('profilePlan');
 const profileVehicleList = document.getElementById('profileVehicleList');
+const profileForm = document.getElementById('profileForm');
+const passwordForm = document.getElementById('passwordForm');
 const buyQrBtn = document.getElementById('buyQrBtn');
 
 let globalVehicles = [];
 let lanUrl = window.location.origin;
+let editingVehicleId = null;
+
+function escapeHtml(value) {
+  const replacements = {
+    '&' : '\u0026amp;',
+    '<' : '\u0026lt;',
+    '>' : '\u0026gt;',
+    '"' : '\u0026quot;',
+    "'" : '\u0026#39;'
+  };
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => replacements[ch]);
+}
 
 // Menü geçişleri
-const menuButtons = document.querySelectorAll('.sidebar-menu button');
+const menuButtons = document.querySelectorAll('.panel-menu button');
 menuButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     switchSection(btn.dataset.section);
@@ -34,7 +47,7 @@ function switchSection(sectionName) {
       b.classList.remove('active');
     }
   });
-  document.querySelectorAll('.dashboard-section').forEach(sec => sec.classList.remove('active'));
+  document.querySelectorAll('.panel-section').forEach(sec => sec.classList.remove('active'));
   const target = document.getElementById(`section-${sectionName}`);
   if (target) {
     target.classList.add('active');
@@ -50,7 +63,7 @@ if (!user || !user.id) {
 
 function getUserPlan() {
   const u = JSON.parse(localStorage.getItem('user') || '{}');
-  return u.planTier || u.plan_tier || user.planTier || user.plan_tier || 'free';
+  return u.planTier || u.plan_tier || 'free';
 }
 
 function setUserPlan(newPlan) {
@@ -62,19 +75,72 @@ function setUserPlan(newPlan) {
   if (profilePlan) profilePlan.textContent = newPlan;
 }
 
+function storageUserFromServer(srvUser) {
+  const u = JSON.parse(localStorage.getItem('user') || '{}');
+  u.id = srvUser.id;
+  u.fullName = srvUser.full_name;
+  u.full_name = srvUser.full_name;
+  u.email = srvUser.email;
+  u.planTier = srvUser.plan_tier;
+  u.plan_tier = srvUser.plan_tier;
+  u.role = srvUser.role;
+  u.phoneNumber = srvUser.phone_number;
+  localStorage.setItem('user', JSON.stringify(u));
+  user = u;
+}
+
+function handleUnauthorized() {
+  alert('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+  localStorage.removeItem('user');
+  window.location.href = 'index.html';
+}
+
 if (userInfo) {
   userInfo.textContent = user.fullName || user.full_name || user.email || '';
 }
 
-if (profileName) profileName.textContent = user.fullName || user.full_name || '-';
-if (profileEmail) profileEmail.textContent = user.email || '-';
-if (profilePlan) profilePlan.textContent = getUserPlan();
-
 if (logoutBtn) {
-  logoutBtn.onclick = () => {
+  logoutBtn.onclick = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn('Oturum kapatma isteği gönderilemedi.', e);
+    }
     localStorage.removeItem('user');
     window.location.href = 'index.html';
   };
+}
+
+// QR görselini internet olmadan üret (vendor/qrcode.min.js)
+function qrPngDataUrl(text, cellSize = 6, marginCells = 4) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const count = qr.getModuleCount();
+  const size = (count + marginCells * 2) * cellSize;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect((marginCells + col) * cellSize, (marginCells + row) * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+  return canvas.toDataURL('image/png');
+}
+
+function renkGorselHtml(renkAdi) {
+  const ad = String(renkAdi ?? '').trim();
+  if (ad === '') return '-';
+  const kod = aracRenkKodu(ad);
+  if (kod === null) return escapeHtml(ad);
+  return '<span class="renk-dot" style="background:' + kod + '"></span>' + escapeHtml(ad);
 }
 
 // Araç seçilince telefon numarasını otomatik doldur
@@ -91,27 +157,37 @@ if (vehicleSelect && callNumberInput) {
 // Verileri getir
 async function fetchDashboard() {
   try {
-    const res = await fetch(`/api/dashboard?user_id=${user.id}`);
+    const res = await fetch('/api/dashboard');
+    if (res.status === 401) {
+      handleUnauthorized();
+      return;
+    }
     const data = await res.json();
     if (data.success) {
       if (data.lanUrl) {
         lanUrl = data.lanUrl;
       }
       if (data.user) {
-        if (profileName) profileName.textContent = data.user.full_name || data.user.fullName || '-';
+        storageUserFromServer(data.user);
+        if (profileName) profileName.textContent = data.user.full_name || '-';
         if (profileEmail) profileEmail.textContent = data.user.email || '-';
-        if (data.user.plan_tier) {
-          setUserPlan(data.user.plan_tier);
-        }
-        if (userInfo) userInfo.textContent = data.user.full_name || data.user.fullName || data.user.email || '';
+        if (profilePlan) profilePlan.textContent = data.user.plan_tier || 'free';
+        if (userInfo) userInfo.textContent = data.user.full_name || data.user.email || '';
+        const nameInput = document.getElementById('profileFullNameInput');
+        const phoneInput = document.getElementById('profilePhoneInput');
+        const occInput = document.getElementById('profileOccupationInput');
+        if (nameInput && document.activeElement !== nameInput) nameInput.value = data.user.full_name || '';
+        if (phoneInput && document.activeElement !== phoneInput) phoneInput.value = data.user.phone_number || '';
+        if (occInput && document.activeElement !== occInput) occInput.value = data.user.occupation || '';
       }
       globalVehicles = data.vehicles || [];
       renderVehicles(globalVehicles);
       renderProfileVehicles(globalVehicles);
-      renderQrCodes(data.qrCodes || [], data.purchasedQrCodes || []);
+      renderQrCodes(data.qrCodes || []);
     }
   } catch (e) {
     console.error('Dashboard yükleme hatası:', e);
+    alert('Sunucuya ulaşılamadı. Lütfen sunucunun çalıştığından emin olun.');
   }
 }
 
@@ -119,34 +195,27 @@ function renderVehicles(vehicles) {
   const currentVal = vehicleSelect.value;
   vehicleSelect.innerHTML = '<option value="">Araç seçiniz</option>';
   vehicleList.innerHTML = '';
-  
+
   if (vehicles.length === 0) {
     vehicleSelect.innerHTML = '<option value="">Önce araç eklemelisiniz</option>';
     vehicleList.innerHTML = '<p style="color:var(--muted);">Henüz araç eklenmemiş. Lütfen yukarıdaki formdan araç ekleyin.</p>';
     return;
   }
-  
+
   vehicles.forEach(v => {
     const opt = document.createElement('option');
     opt.value = v.id;
-    opt.textContent = `${v.plate_number} ${v.brand_model ? '- ' + v.brand_model : ''}`;
+    opt.textContent = `${escapeHtml(v.plate_number)} ${v.brand_model ? '- ' + escapeHtml(v.brand_model) : ''}`;
     if (String(v.id) === String(currentVal)) {
       opt.selected = true;
     }
     vehicleSelect.appendChild(opt);
-    
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <h4>${v.plate_number}</h4>
-      <p><strong>Marka/Model:</strong> ${v.brand_model || '-'}</p>
-      <p><strong>Renk:</strong> ${v.color || '-'}</p>
-      <p><strong>İletişim:</strong> ${v.contact_phone || '-'}</p>
-    `;
-    vehicleList.appendChild(card);
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = buildVehicleCardHtml(v);
+    vehicleList.appendChild(wrapper.firstElementChild);
   });
 
-  // Eğer formda numara boşsa ve araç seçiliyse ilk aracın numarasını öner
   if (!callNumberInput.value && vehicles[0] && vehicles[0].contact_phone) {
     if (vehicleSelect.value) {
       const selected = vehicles.find(x => String(x.id) === String(vehicleSelect.value));
@@ -157,6 +226,46 @@ function renderVehicles(vehicles) {
   }
 }
 
+function buildVehicleCardHtml(v, opts = {}) {
+  const id = Number(v.id);
+  const editing = opts.editing === true;
+  const withActions = opts.withActions === true;
+
+  if (editing) {
+    return `
+      <div class="card veh-card">
+        <h4>${escapeHtml(v.plate_number || '')}</h4>
+        <form data-edit-form="${id}">
+          <label>Plaka<input type="text" name="plateNumber" maxlength="20" value="${escapeHtml(v.plate_number || '')}" required></label>
+          <label>Marka/Model<input type="text" name="brandModel" value="${escapeHtml(v.brand_model || '')}"></label>
+          <label>Renk<select name="color">${aracRenkSecenekleri(v.color, 'Renk seçilmedi')}</select></label>
+          <label>İsim Soyisim<input type="text" name="ownerName" value="${escapeHtml(v.owner_name || '')}"></label>
+          <label>Telefon<input type="tel" name="contactPhone" value="${escapeHtml(v.contact_phone || '')}"></label>
+          <div class="row-actions" style="margin-top: 8px;">
+            <button type="submit" class="btn btn-primary btn-sm">Kaydet</button>
+            <button type="button" class="btn btn-outline btn-sm" data-action="cancel-edit">Vazgeç</button>
+          </div>
+        </form>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card veh-card">
+      <h4>${escapeHtml(v.plate_number || '-')}</h4>
+      <p><strong>Marka/Model</strong><span>${escapeHtml(v.brand_model || '-')}</span></p>
+      <p><strong>Renk</strong><span>${renkGorselHtml(v.color)}</span></p>
+      <p><strong>İsim Soyisim</strong><span>${escapeHtml(v.owner_name || '-')}</span></p>
+      <p><strong>Telefon</strong><span>${escapeHtml(v.contact_phone || '-')}</span></p>
+      ${withActions ? `
+      <div class="row-actions" style="margin-top: 14px;">
+        <button class="btn btn-outline btn-sm" data-action="edit" data-id="${id}">Düzenle</button>
+        <button class="btn btn-outline btn-sm" data-action="delete" data-id="${id}">Sil</button>
+      </div>` : ''}
+    </div>
+  `;
+}
+
 function renderProfileVehicles(vehicles) {
   if (!profileVehicleList) return;
   profileVehicleList.innerHTML = '';
@@ -165,200 +274,298 @@ function renderProfileVehicles(vehicles) {
     return;
   }
   vehicles.forEach(v => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.style.textAlign = 'left';
-    card.innerHTML = `
-      <h4>${v.plate_number || '-'}</h4>
-      <p><strong>Marka/Model:</strong> ${v.brand_model || '-'}</p>
-      <p><strong>Renk:</strong> ${v.color || '-'}</p>
-      <p><strong>İsim Soyisim:</strong> ${v.owner_name || '-'}</p>
-      <p><strong>Telefon:</strong> ${v.contact_phone || '-'}</p>
-      <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn btn-outline" data-action="edit" data-id="${v.id}">Düzenle</button>
-        <button class="btn btn-outline" data-action="delete" data-id="${v.id}">Sil</button>
-      </div>
-    `;
-    profileVehicleList.appendChild(card);
-  });
-
-  profileVehicleList.querySelectorAll('button[data-action]').forEach(btn => {
-    btn.onclick = async () => {
-      const id = btn.getAttribute('data-id');
-      if (btn.getAttribute('data-action') === 'delete') {
-        if (!confirm('Aracı silmek istediğinize emin misiniz?')) return;
-        try {
-          const res = await fetch('/api/vehicles', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, user_id: user.id })
-          });
-          const result = await res.json();
-          if (result.success) {
-            alert('Araç silindi.');
-            fetchDashboard();
-          } else {
-            alert('Hata: ' + result.message);
-          }
-        } catch (e) {
-          alert('Sunucuya ulaşılamadı.');
-        }
-      } else if (btn.getAttribute('data-action') === 'edit') {
-        const v = globalVehicles.find(x => String(x.id) === String(id));
-        if (!v) return;
-        const plate = prompt('Plaka', v.plate_number || '');
-        if (plate === null) return;
-        const brand = prompt('Marka/Model', v.brand_model || '');
-        if (brand === null) return;
-        const color = prompt('Renk', v.color || '');
-        if (color === null) return;
-        const owner = prompt('İsim Soyisim', v.owner_name || '');
-        if (owner === null) return;
-        const phone = prompt('Telefon', v.contact_phone || '');
-        if (phone === null) return;
-        try {
-          const res = await fetch('/api/vehicles', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, user_id: user.id, plateNumber: plate, brandModel: brand, color, ownerName: owner, contactPhone: phone })
-          });
-          const result = await res.json();
-          if (result.success) {
-            alert('Araç bilgileri güncellendi.');
-            fetchDashboard();
-          } else {
-            alert('Hata: ' + result.message);
-          }
-        } catch (e) {
-          alert('Sunucuya ulaşılamadı.');
-        }
-      }
-    };
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = buildVehicleCardHtml(v, { editing: editingVehicleId === Number(v.id), withActions: true });
+    profileVehicleList.appendChild(wrapper.firstElementChild);
   });
 }
 
+profileVehicleList.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const action = btn.getAttribute('data-action');
+
+  if (action === 'edit') {
+    editingVehicleId = Number(btn.getAttribute('data-id'));
+    renderProfileVehicles(globalVehicles);
+  } else if (action === 'cancel-edit') {
+    editingVehicleId = null;
+    renderProfileVehicles(globalVehicles);
+  } else if (action === 'delete') {
+    const id = Number(btn.getAttribute('data-id'));
+    const v = globalVehicles.find(x => Number(x.id) === id);
+    if (!confirm(`"${v ? v.plate_number : id}" plakalı araç silinecek.\n\nBu araca bağlı TÜM QR kartlar da kalıcı olarak silinir.\n\nOnaylıyor musunuz?`)) {
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch('/api/vehicles', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vehicle_id: id })
+        });
+        if (res.status === 401) return handleUnauthorized();
+        const result = await res.json();
+        if (result.success) {
+          alert('Araç ve bağlı QR kartları silindi.');
+          fetchDashboard();
+        } else {
+          alert('Hata: ' + result.message);
+        }
+      } catch (err) {
+        alert('Sunucuya ulaşılamadı.');
+      }
+    })();
+  }
+});
+
+profileVehicleList.addEventListener('submit', async (e) => {
+  const form = e.target.closest('form[data-edit-form]');
+  if (!form) return;
+  e.preventDefault();
+  const id = Number(form.getAttribute('data-edit-form'));
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    const res = await fetch('/api/vehicles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vehicle_id: id,
+        plateNumber: data.plateNumber,
+        brandModel: data.brandModel,
+        color: data.color,
+        ownerName: data.ownerName,
+        contactPhone: data.contactPhone
+      })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      editingVehicleId = null;
+      alert('Araç bilgileri güncellendi.');
+      fetchDashboard();
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+});
+
 function getQrLinks(qrToken) {
-  // Bilgisayar tarayıcısından açmak için geçerli URL
   const browserUrl = window.location.origin + '/qr.html?token=' + encodeURIComponent(qrToken || '');
-  // Telefon kamerasından taranabilmesi için LAN URL (örn. 10.34.0.87:8000)
   let phoneUrl = browserUrl;
   if (lanUrl && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     phoneUrl = lanUrl + '/qr.html?token=' + encodeURIComponent(qrToken || '');
   }
-  // QR kod içine gömülen veri
-  const qrImgSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(phoneUrl);
-  return { browserUrl, phoneUrl, qrImgSrc };
+  return { browserUrl, phoneUrl };
 }
 
 function buildQrCardHtml(qr, isSingleResult = false) {
   const token = qr.qr_token || qr.qrToken || '';
-  const { browserUrl, phoneUrl, qrImgSrc } = getQrLinks(token);
+  const qrId = Number(qr.id || 0);
+  const isActive = Number(qr.is_active ?? qr.isActive ?? 1) === 1;
+  const { browserUrl, phoneUrl } = getQrLinks(token);
   const plate = qr.plate_number || qr.plateNumber || 'Araç';
   const brand = qr.brand_model || qr.brandModel || '';
   const phone = qr.call_number || qr.callNumber || qr.contact_phone || '-';
-  const scanCount = qr.scan_count || 0;
+  const scanCount = Number(qr.scan_count || 0);
+  const qrImgSrc = qrPngDataUrl(phoneUrl);
+
+  const badge = isActive
+    ? '<span class="qr-badge qr-badge-active">● Aktif QR Vizit</span>'
+    : '<span class="qr-badge qr-badge-inactive">○ Devre Dışı</span>';
 
   return `
-    <div class="qr-card-item ${isSingleResult ? 'printable-qr-card' : ''}" id="qr-card-${token}">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span class="qr-badge qr-badge-active">● Aktif QR Vizite</span>
-        <span style="font-size:12px; color:var(--muted);">${scanCount} kez tarandı</span>
+    <div class="qr-card-item ${isSingleResult ? 'printable-qr-card' : ''}" id="qr-card-${escapeHtml(token)}">
+      <div class="qr-card-top">
+        ${badge}
+        <span class="qr-meta">${scanCount} kez tarandı</span>
       </div>
-      <div style="text-align:center; margin:10px 0;">
-        <a href="${browserUrl}" target="_blank" title="Vizite sayfasını önizlemek için tıklayın">
-          <img src="${qrImgSrc}" alt="QR Kod" style="width:160px; height:160px; border-radius:12px; background:#fff; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,0.2); cursor:pointer;" />
+      <div class="qr-visual">
+        <a href="${browserUrl}" target="_blank" rel="noopener" title="Vizit sayfasını önizlemek için tıklayın">
+          <img src="${qrImgSrc}" alt="QR Kod" />
         </a>
-        <p style="font-size:11px; color:var(--muted); margin-top:6px;">📱 Telefon ile okutabilirsiniz</p>
+        <p>Telefon ile okutabilirsiniz</p>
       </div>
-      <h3 style="margin:0; font-size:18px;">${plate}</h3>
-      ${brand ? `<p style="margin:2px 0; color:var(--muted); font-size:14px;">${brand}</p>` : ''}
-      <p style="margin:4px 0; font-size:13px;"><strong>İletişim:</strong> ${phone}</p>
-      <p style="margin:2px 0; font-size:11px; color:var(--muted); word-break:break-all;"><strong>Token:</strong> ${token.substring(0, 16)}...</p>
+      <h3 class="qr-plate">${escapeHtml(plate)}</h3>
+      ${brand ? `<p class="qr-brand">${escapeHtml(brand)}</p>` : ''}
+      <p class="qr-line"><strong>İletişim:</strong> ${escapeHtml(phone)}</p>
+      <p class="qr-token"><strong>Token:</strong> <span class="no-print">${escapeHtml(token.substring(0, 16))}...</span></p>
 
       <div class="qr-actions-grid no-print">
-        <a href="${browserUrl}" target="_blank" class="btn btn-outline" style="text-align:center; font-size:13px; padding:8px 10px;">👁️ Sayfayı Aç</a>
-        <button type="button" class="btn btn-outline" onclick="downloadQrImage('${qrImgSrc}', '${plate}')" style="font-size:13px; padding:8px 10px;">💾 İndir</button>
-        <button type="button" class="btn btn-outline" onclick="copyQrLink('${phoneUrl}')" style="font-size:13px; padding:8px 10px;">📋 Kopyala</button>
-        <button type="button" class="btn btn-primary" onclick="printQrCard('${token}')" style="font-size:13px; padding:8px 10px;">🖨️ Yazdır</button>
+        <a href="${browserUrl}" target="_blank" rel="noopener" class="btn btn-outline">Sayfayı Aç</a>
+        <button type="button" class="btn btn-outline" data-qr-action="download" data-token="${escapeHtml(token)}" data-plate="${escapeHtml(plate)}">İndir</button>
+        <button type="button" class="btn btn-outline" data-qr-action="copy" data-token="${escapeHtml(token)}">Kopyala</button>
+        <button type="button" class="btn btn-outline" data-qr-action="print" data-token="${escapeHtml(token)}">Yazdır</button>
+        <button type="button" class="btn btn-outline" data-qr-action="toggle" data-id="${qrId}" data-active="${isActive ? 1 : 0}">${isActive ? 'Devre Dışı Bırak' : 'Etkinleştir'}</button>
+        <button type="button" class="btn btn-outline" data-qr-action="rotate" data-id="${qrId}">Bağlantıyı Yenile</button>
+        <button type="button" class="btn btn-outline" data-qr-action="delete" data-id="${qrId}">Sil</button>
       </div>
     </div>
   `;
 }
 
-function renderQrCodes(qrCodes, purchasedQrCodes) {
-  const allQr = purchasedQrCodes && purchasedQrCodes.length > 0 ? purchasedQrCodes : qrCodes;
-  purchasedQrList.innerHTML = '';
+function renderQrCodes(qrCodes) {
   qrList.innerHTML = '';
-  
-  if (!allQr || allQr.length === 0) {
-    const emptyHtml = '<p style="color:var(--muted);">Henüz QR vizit kartı oluşturulmamış. "QR Vizite Oluşturma" menüsünden aracınız için anında oluşturabilirsiniz.</p>';
-    purchasedQrList.innerHTML = emptyHtml;
-    qrList.innerHTML = emptyHtml;
+  if (!qrCodes || qrCodes.length === 0) {
+    qrList.innerHTML = '<p style="color:var(--muted);">Henüz QR vizit kartı oluşturulmamış. "QR Vizite Oluşturma" menüsünden aracınız için anında oluşturabilirsiniz.</p>';
     return;
   }
-  
-  allQr.forEach(qr => {
-    purchasedQrList.innerHTML += buildQrCardHtml(qr);
-  });
-  
-  (qrCodes || []).forEach(qr => {
-    qrList.innerHTML += buildQrCardHtml(qr);
+  qrCodes.forEach(qr => {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = buildQrCardHtml(qr);
+    qrList.appendChild(wrapper.firstElementChild);
   });
 }
 
-// Yardımcı Aksiyon Fonksiyonları
-window.copyQrLink = (url) => {
-  navigator.clipboard.writeText(url).then(() => {
-    alert('QR vizite linki panoya kopyalandı:\n' + url);
-  }).catch(() => {
-    prompt('QR linkini kopyalayabilirsiniz:', url);
-  });
-};
+// QR kartı aksiyonları (olay delegasyonu)
+function findQrContainer(e) {
+  return qrList.contains(e.target) || (newQrResult && newQrResult.contains(e.target));
+}
 
-window.downloadQrImage = (imgUrl, plate) => {
+async function qrActionToggle(btn) {
+  const qrId = Number(btn.getAttribute('data-id'));
+  const nextActive = btn.getAttribute('data-active') === '1' ? 0 : 1;
+  if (nextActive === 0 && !confirm('Bu QR kartı devre dışı bırakılacak. Tarama yapanlar artık bu linke ulaşamaz. Onaylıyor musunuz?')) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/qr-codes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: qrId, action: 'toggle', is_active: nextActive })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      alert(result.message);
+      await fetchDashboard();
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+}
+
+async function qrActionRotate(btn) {
+  const qrId = Number(btn.getAttribute('data-id'));
+  if (!confirm('QR bağlantısı yenilenecek. Daha önce basılmış/baskıda olan eski kartlar ÇALIŞMAYACAK. Onaylıyor musunuz?')) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/qr-codes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: qrId, action: 'rotate' })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      alert(result.message);
+      await fetchDashboard();
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+}
+
+async function qrActionDelete(btn) {
+  const qrId = Number(btn.getAttribute('data-id'));
+  if (!confirm('Bu QR kartı kalıcı olarak silinecek. Onaylıyor musunuz?')) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/qr-codes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: qrId })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      alert(result.message);
+      await fetchDashboard();
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+}
+
+function qrActionDownload(btn) {
+  const token = btn.getAttribute('data-token');
+  const plate = btn.getAttribute('data-plate') || 'QR';
+  const { phoneUrl } = getQrLinks(token);
+  const dataUrl = qrPngDataUrl(phoneUrl, 10, 8);
   const link = document.createElement('a');
-  link.href = imgUrl;
-  link.download = `66Vizite-${plate || 'QR'}.png`;
-  link.target = '_blank';
+  link.href = dataUrl;
+  link.download = `66Vizite-${plate}.png`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-};
+}
 
-window.printQrCard = (token) => {
+function qrActionCopy(btn) {
+  const token = btn.getAttribute('data-token');
+  const { phoneUrl } = getQrLinks(token);
+  navigator.clipboard.writeText(phoneUrl).then(() => {
+    alert('QR vizite linki panoya kopyalandı:\n' + phoneUrl);
+  }).catch(() => {
+    prompt('QR linkini kopyalayabilirsiniz:', phoneUrl);
+  });
+}
+
+function qrActionPrint(btn) {
+  const token = btn.getAttribute('data-token');
   const card = document.getElementById(`qr-card-${token}`);
   if (!card) {
     window.print();
     return;
   }
-  // Sadece bu kartı print alanına hazırla
   document.querySelectorAll('.printable-qr-card').forEach(el => el.classList.remove('printable-qr-card'));
   card.classList.add('printable-qr-card');
   window.print();
   card.classList.remove('printable-qr-card');
-};
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-qr-action]');
+  if (!btn || !findQrContainer(e)) return;
+  const action = btn.getAttribute('data-qr-action');
+  if (action === 'toggle') qrActionToggle(btn);
+  else if (action === 'rotate') qrActionRotate(btn);
+  else if (action === 'delete') qrActionDelete(btn);
+  else if (action === 'download') qrActionDownload(btn);
+  else if (action === 'copy') qrActionCopy(btn);
+  else if (action === 'print') qrActionPrint(btn);
+});
 
 // Araç Ekleme Formu
 vehicleForm.onsubmit = async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(vehicleForm));
-  data.user_id = user.id;
   try {
     const res = await fetch('/api/vehicles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    if (res.status === 401) return handleUnauthorized();
     const result = await res.json();
     if (result.success) {
       alert('Araç başarıyla eklendi.');
       vehicleForm.reset();
       await fetchDashboard();
-      // Kullanıcıyı QR vizite oluşturmaya yönlendir
       if (confirm('Araç eklendi! Şimdi bu araç için QR Vizite Kartı oluşturmak ister misiniz?')) {
         switchSection('qr-create');
         if (result.vehicle && result.vehicle.id) {
           vehicleSelect.value = result.vehicle.id;
+          vehicleSelect.dispatchEvent(new Event('change'));
         }
       }
     } else {
@@ -372,7 +579,7 @@ vehicleForm.onsubmit = async (e) => {
 // QR Vizite Oluşturma Formu
 qrForm.onsubmit = async (e) => {
   e.preventDefault();
-  
+
   if (globalVehicles.length === 0) {
     alert('QR kod oluşturabilmek için önce bir araç eklemeniz gerekmektedir.');
     switchSection('vehicles');
@@ -385,16 +592,21 @@ qrForm.onsubmit = async (e) => {
     if (!upgrade) {
       return;
     }
-    // Pro paketi otomatik aktifleştir
     try {
-      await fetch('/api/user/update-plan', {
+      const res = await fetch('/api/user/update-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, plan: 'pro' })
+        body: JSON.stringify({ plan: 'pro' })
       });
+      const result = await res.json();
+      if (!result.success) {
+        alert('Hata: ' + result.message);
+        return;
+      }
       setUserPlan('pro');
     } catch (err) {
-      console.warn('Plan güncelleme hatası:', err);
+      alert('Sunucuya ulaşılamadı.');
+      return;
     }
   }
 
@@ -406,25 +618,25 @@ qrForm.onsubmit = async (e) => {
 
   if (submitQrBtn) {
     submitQrBtn.disabled = true;
-    submitQrBtn.textContent = 'QR Vizite Kartı Oluşturuluyor...';
+    submitQrBtn.textContent = 'QR Vizit Kartı Oluşturuluyor...';
   }
 
   try {
     const res = await fetch('/api/qr-codes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         vehicle_id: data.vehicleId,
         callNumber: data.callNumber,
         autoMessage: data.autoMessage
       })
     });
+    if (res.status === 401) return handleUnauthorized();
     const result = await res.json();
 
     if (result.success && result.qrCode) {
       const newQr = result.qrCode;
-      
-      // Formun altına başarı kutusu ve anlık önizleme göster
+
       if (newQrResult) {
         newQrResult.style.display = 'block';
         newQrResult.innerHTML = `
@@ -440,11 +652,10 @@ qrForm.onsubmit = async (e) => {
               ${buildQrCardHtml(newQr, true)}
             </div>
             <div style="text-align:center; margin-top:20px;">
-              <button class="btn btn-outline" type="button" onclick="switchSection('qr-purchased')">Tüm Kartlarımı Görüntüle →</button>
+              <button class="btn btn-outline" type="button" onclick="switchSection('qr-all');document.getElementById('section-qr-all').scrollIntoView({behavior:'smooth'});">Tüm Kartlarımı Görüntüle →</button>
             </div>
           </div>
         `;
-        // Görünmesi için kaydır
         newQrResult.scrollIntoView({ behavior: 'smooth' });
       }
 
@@ -462,6 +673,59 @@ qrForm.onsubmit = async (e) => {
   }
 };
 
+// Profil Bilgileri Formu
+profileForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(profileForm));
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: data.fullName,
+        phoneNumber: data.phoneNumber,
+        occupation: data.occupation
+      })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      alert(result.message);
+      await fetchDashboard();
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+};
+
+// Şifre Değiştirme Formu
+passwordForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(passwordForm));
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword
+      })
+    });
+    if (res.status === 401) return handleUnauthorized();
+    const result = await res.json();
+    if (result.success) {
+      passwordForm.reset();
+      alert(result.message);
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (err) {
+    alert('Sunucuya ulaşılamadı.');
+  }
+};
+
 // Paket Satın Alma Butonu
 if (buyQrBtn) {
   buyQrBtn.onclick = async () => {
@@ -469,12 +733,13 @@ if (buyQrBtn) {
       const res = await fetch('/api/user/update-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, plan: 'pro' })
+        body: JSON.stringify({ plan: 'pro' })
       });
+      if (res.status === 401) return handleUnauthorized();
       const result = await res.json();
       if (result.success) {
         setUserPlan('pro');
-        alert('Tebrikler! Pro QR Vizite Paketi başarıyla hesabınıza tanımlandı.');
+        alert('Tebrikler! Pro QR Vizite Paketi hesabınıza tanımlandı.');
         await fetchDashboard();
         switchSection('qr-create');
       } else {
@@ -484,6 +749,11 @@ if (buyQrBtn) {
       alert('İşlem sırasında bir hata oluştu.');
     }
   };
+}
+
+const vehicleColorSelect = document.getElementById('vehicleColorSelect');
+if (vehicleColorSelect) {
+  vehicleColorSelect.innerHTML = aracRenkSecenekleri('', 'Renk seçilmedi');
 }
 
 // Başlangıçta verileri çek
