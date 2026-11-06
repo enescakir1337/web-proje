@@ -66,13 +66,27 @@ function getUserPlan() {
   return u.planTier || u.plan_tier || 'free';
 }
 
+function updatePlanBadge(plan) {
+  if (!profilePlan) return;
+  const value = plan || 'free';
+  profilePlan.textContent = value;
+  profilePlan.classList.toggle('is-pro', String(value).toLowerCase() === 'pro');
+}
+
+function updateProfileAvatar(name) {
+  const avatar = document.getElementById('profileAvatar');
+  if (!avatar) return;
+  const initials = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('');
+  avatar.textContent = initials ? initials.toUpperCase() : '?';
+}
+
 function setUserPlan(newPlan) {
   const u = JSON.parse(localStorage.getItem('user') || '{}');
   u.planTier = newPlan;
   u.plan_tier = newPlan;
   localStorage.setItem('user', JSON.stringify(u));
   user = u;
-  if (profilePlan) profilePlan.textContent = newPlan;
+  updatePlanBadge(newPlan);
 }
 
 function storageUserFromServer(srvUser) {
@@ -171,7 +185,8 @@ async function fetchDashboard() {
         storageUserFromServer(data.user);
         if (profileName) profileName.textContent = data.user.full_name || '-';
         if (profileEmail) profileEmail.textContent = data.user.email || '-';
-        if (profilePlan) profilePlan.textContent = data.user.plan_tier || 'free';
+        updatePlanBadge(data.user.plan_tier || 'free');
+        updateProfileAvatar(data.user.full_name || data.user.email);
         if (userInfo) userInfo.textContent = data.user.full_name || data.user.email || '';
         const nameInput = document.getElementById('profileFullNameInput');
         const phoneInput = document.getElementById('profilePhoneInput');
@@ -270,7 +285,7 @@ function renderProfileVehicles(vehicles) {
   if (!profileVehicleList) return;
   profileVehicleList.innerHTML = '';
   if (!vehicles || vehicles.length === 0) {
-    profileVehicleList.innerHTML = '<p style="color:var(--muted);">Henüz araç eklenmemiş.</p>';
+    profileVehicleList.innerHTML = '<div class="profile-empty">Henüz araç eklenmemiş. Araçlarınızı “QR Vizite Bilgileri” bölümünden ekleyebilirsiniz.</div>';
     return;
   }
   vehicles.forEach(v => {
