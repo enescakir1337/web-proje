@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../database/db.php';
 
 try {
-    $token = $_GET['token'] ?? '';
+    $token = trim((string)($_GET['token'] ?? ''));
     if ($token === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'QR token gerekli.']);
@@ -25,7 +25,7 @@ try {
     $stmt = $db->prepare('
         SELECT qc.*, v.plate_number, v.brand_model, v.color, v.owner_name, v.contact_phone as vehicle_contact
         FROM qr_codes qc
-        JOIN vehicles v ON v.id = qc.vehicle_id
+        LEFT JOIN vehicles v ON v.id = qc.vehicle_id
         WHERE qc.qr_token = :token
     ');
     $stmt->execute([':token' => $token]);
@@ -33,10 +33,11 @@ try {
     
     if (!$qr) {
         http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'QR bulunamadı.']);
+        echo json_encode(['success' => false, 'message' => 'QR vizite bilgisi bulunamadı.']);
         exit;
     }
     
+    // Görüntülenme sayısını artır
     $db->prepare('UPDATE qr_codes SET scan_count = scan_count + 1 WHERE qr_token = :token')->execute([':token' => $token]);
     
     http_response_code(200);

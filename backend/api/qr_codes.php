@@ -45,13 +45,17 @@ try {
         
         if ($vehicleId <= 0) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Araç bilgisi gerekli.']);
+            echo json_encode(['success' => false, 'message' => 'Lütfen geçerli bir araç seçin.']);
             exit;
         }
         
         $qrCode = createQrCode($vehicleId, $purchaseId, $callNumber, $autoMessage);
         http_response_code(201);
-        echo json_encode(['success' => true, 'message' => 'QR vizit kartı başarıyla oluşturuldu.', 'qrCode' => $qrCode]);
+        echo json_encode([
+            'success' => true, 
+            'message' => 'QR vizit kartı başarıyla oluşturuldu.', 
+            'qrCode' => $qrCode
+        ]);
         exit;
     }
     

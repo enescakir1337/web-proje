@@ -12,6 +12,7 @@ function getDbConnection(): PDO {
         $pdo = new PDO('sqlite:' . $dbPath);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $pdo->exec('PRAGMA foreign_keys = ON;');
 
         if (is_file($schemaPath)) {
             $pdo->exec(file_get_contents($schemaPath));
@@ -143,6 +144,20 @@ function getVehiclesByUserId(int $userId): array {
 
 function createQrCode(int $vehicleId, ?int $purchaseId = null, string $callNumber = '', string $autoMessage = ''): array {
     $db = getDbConnection();
+
+    $vehStmt = $db->prepare('SELECT * FROM vehicles WHERE id = :id');
+    $vehStmt->execute([':id' => $vehicleId]);
+    $vehicle = $vehStmt->fetch();
+
+    if ($purchaseId === null && $vehicle && isset($vehicle['user_id'])) {
+        $pStmt = $db->prepare('SELECT id FROM purchases WHERE user_id = :uid AND status = "completed" ORDER BY id DESC LIMIT 1');
+        $pStmt->execute([':uid' => $vehicle['user_id']]);
+        $pRow = $pStmt->fetch();
+        if ($pRow) {
+            $purchaseId = (int)$pRow['id'];
+        }
+    }
+
     $qrToken = bin2hex(random_bytes(32));
     $stmt = $db->prepare('
         INSERT INTO qr_codes (vehicle_id, qr_token, purchase_id, call_number, auto_message)
@@ -155,27 +170,41 @@ function createQrCode(int $vehicleId, ?int $purchaseId = null, string $callNumbe
         ':call_number' => trim($callNumber) === '' ? null : trim($callNumber),
         ':auto_message' => trim($autoMessage) === '' ? null : trim($autoMessage),
     ]);
+
+    $newId = (int)$db->lastInsertId();
+
     return [
-        'id' => (int)$db->lastInsertId(),
+        'id' => $newId,
+        'vehicle_id' => $vehicleId,
         'vehicleId' => $vehicleId,
+        'qr_token' => $qrToken,
         'qrToken' => $qrToken,
+        'purchase_id' => $purchaseId,
         'purchaseId' => $purchaseId,
+        'is_active' => 1,
         'isActive' => 1,
-        'callNumber' => trim($callNumber) === '' ? null : trim($callNumber),
+        'call_number' => trim($callNumber) === '' ? ($vehicle['contact_phone'] ?? null) : trim($callNumber),
+        'callNumber' => trim($callNumber) === '' ? ($vehicle['contact_phone'] ?? null) : trim($callNumber),
+        'auto_message' => trim($autoMessage) === '' ? null : trim($autoMessage),
         'autoMessage' => trim($autoMessage) === '' ? null : trim($autoMessage),
+        'plate_number' => $vehicle['plate_number'] ?? '',
+        'brand_model' => $vehicle['brand_model'] ?? '',
+        'color' => $vehicle['color'] ?? '',
+        'created_at' => date('Y-m-d H:i:s'),
     ];
 }
 
 function getQrCodesByUserId(int $userId): array {
     $db = getDbConnection();
     $stmt = $db->prepare('
-        SELECT qc.*, v.plate_number, v.brand_model, v.color, v.user_id
+        SELECT qc.*, v.plate_number, v.brand_model, v.color, v.user_id, p.package_name, p.amount
         FROM qr_codes qc
-        JOIN vehicles v ON v.id = qc.vehicle_id
-        WHERE v.user_id = :user_id
+        LEFT JOIN vehicles v ON v.id = qc.vehicle_id
+        LEFT JOIN purchases p ON p.id = qc.purchase_id
+        WHERE v.user_id = :user_id OR qc.vehicle_id IN (SELECT id FROM vehicles WHERE user_id = :user_id2)
         ORDER BY qc.created_at DESC
     ');
-    $stmt->execute([':user_id' => $userId]);
+    $stmt->execute([':user_id' => $userId, ':user_id2' => $userId]);
     return $stmt->fetchAll();
 }
 
@@ -184,12 +213,12 @@ function getPurchasedQrCodesByUserId(int $userId): array {
     $stmt = $db->prepare('
         SELECT qc.*, v.plate_number, v.brand_model, v.color, v.user_id, p.package_name, p.amount, p.created_at as purchase_date
         FROM qr_codes qc
-        JOIN vehicles v ON v.id = qc.vehicle_id
+        LEFT JOIN vehicles v ON v.id = qc.vehicle_id
         LEFT JOIN purchases p ON p.id = qc.purchase_id
-        WHERE v.user_id = :user_id
+        WHERE v.user_id = :user_id OR qc.vehicle_id IN (SELECT id FROM vehicles WHERE user_id = :user_id2)
         ORDER BY qc.created_at DESC
     ');
-    $stmt->execute([':user_id' => $userId]);
+    $stmt->execute([':user_id' => $userId, ':user_id2' => $userId]);
     return $stmt->fetchAll();
 }
 

@@ -27,7 +27,7 @@ exit /b 1
 
 :START_SERVER
 echo [1/2] PHP Calistirici: %PHP_BIN%
-echo [2/2] Sunucu aciliyor: http://localhost:8000
+echo [2/2] Sunucu aciliyor: http://localhost:8000 (ve Ag uzerinden telefon erisimi)
 echo.
 echo Tarayici aciliyor...
 echo Sunucuyu durdurmak icin bu pencereyi kapatabilirsiniz.
@@ -35,5 +35,5 @@ echo ===================================================
 echo.
 
 start http://localhost:8000
-"%PHP_BIN%" -S localhost:8000 -t frontend backend\router.php
+"%PHP_BIN%" -S 0.0.0.0:8000 -t frontend backend\router.php
 pause

@@ -19,18 +19,24 @@ try {
     if (!is_array($data)) {
         $data = $_POST;
     }
-    $userId = isset($data['user_id']) ? (int)$data['user_id'] : 0;
+    $userId = isset($data['user_id']) ? (int)$data['user_id'] : (isset($data['userId']) ? (int)$data['userId'] : 0);
     $plan = trim((string)($data['plan'] ?? $data['plan_tier'] ?? 'pro'));
+    
     if ($userId <= 0) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Kullanıcı bilgisi gerekli.']);
         exit;
     }
+    
     $db = getDbConnection();
     $stmt = $db->prepare('UPDATE users SET plan_tier = :plan WHERE id = :id');
     $stmt->execute([':plan' => $plan, ':id' => $userId]);
+    
+    // Satın alma kaydı da ekleyelim
+    createPurchase($userId, 'QR Vizite Paketi (Pro)', 1, 299.00);
+
     http_response_code(200);
-    echo json_encode(['success' => true, 'message' => 'Plan güncellendi.']);
+    echo json_encode(['success' => true, 'message' => 'Plan başarıyla güncellendi.', 'plan' => $plan]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Hata: ' . $e->getMessage()]);

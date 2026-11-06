@@ -41,6 +41,10 @@ try {
     $qrCodes = getQrCodesByUserId($userId);
     $purchasedQrCodes = getPurchasedQrCodesByUserId($userId);
     
+    $serverIp = gethostbyname(gethostname());
+    $port = $_SERVER['SERVER_PORT'] ?? '8000';
+    $lanUrl = 'http://' . $serverIp . ':' . $port;
+
     http_response_code(200);
     echo json_encode([
         'success' => true,
@@ -48,7 +52,9 @@ try {
         'vehicles' => $vehicles,
         'purchases' => $purchases,
         'qrCodes' => $qrCodes,
-        'purchasedQrCodes' => $purchasedQrCodes
+        'purchasedQrCodes' => $purchasedQrCodes,
+        'serverIp' => $serverIp,
+        'lanUrl' => $lanUrl
     ]);
 } catch (Throwable $e) {
     http_response_code(500);
